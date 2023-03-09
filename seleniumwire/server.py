@@ -36,6 +36,7 @@ class MitmProxy:
 
         self.request_interceptor = None
         self.response_interceptor = None
+        self.websocket_interceptor = None
 
         self._event_loop = asyncio.new_event_loop()
 

@@ -5,7 +5,7 @@ from typing import Iterator, List, Optional, Union
 from selenium.common.exceptions import TimeoutException
 
 from seleniumwire import har
-from seleniumwire.request import Request
+from seleniumwire.request import Request, WebSocketMessage
 
 
 class InspectRequestsMixin:
@@ -52,7 +52,7 @@ class InspectRequestsMixin:
         """Wait up to the timeout period for a request matching the specified
         pattern to be seen.
 
-        The pat attribute can be can be a simple substring or a regex that will
+        The pat attribute can be a simple substring or a regex that will
         be searched in the full request URL. If a request is not seen before the
         timeout then a TimeoutException is raised. Only requests with corresponding
         responses are considered.
@@ -73,7 +73,7 @@ class InspectRequestsMixin:
         start = time.time()
 
         while time.time() - start < timeout:
-            request = self.backend.storage.find(pat)
+            request = self.backend.storage.find_request(pat)
 
             if request is None:
                 time.sleep(1 / 5)
@@ -81,6 +81,39 @@ class InspectRequestsMixin:
                 return request
 
         raise TimeoutException('Timed out after {}s waiting for request matching {}'.format(timeout, pat))
+
+    def wait_for_websocket(self, pat: str, timeout: Union[int, float] = 10) -> WebSocketMessage:
+        """Wait up to the timeout period for a websocket message matching the specified
+        pattern to be seen.
+
+        The pat attribute can be a simple substring or a regex that will
+        be searched in the message content. If a websocket message is not seen before the
+        timeout then a TimeoutException is raised.
+
+        Given that pat can be a regex, ensure that any special characters
+        (e.g. question marks) are escaped.
+
+        Args:
+            pat: The pat of the websocket message to look for. A regex can be supplied.
+            timeout: The maximum time to wait in seconds. Default 10s.
+
+        Returns:
+            The websocket message.
+        Raises:
+            TimeoutException if a websocket message is not seen within the timeout
+                period.
+        """
+        start = time.time()
+
+        while time.time() - start < timeout:
+            ws_message = self.backend.storage.find_websocket(pat)
+
+            if ws_message is None:
+                time.sleep(1 / 5)
+            else:
+                return ws_message
+
+        raise TimeoutException('Timed out after {}s waiting for websocket message matching {}'.format(timeout, pat))
 
     @property
     def har(self) -> str:
@@ -316,3 +349,20 @@ class InspectRequestsMixin:
     @response_interceptor.deleter
     def response_interceptor(self):
         self.backend.response_interceptor = None
+
+    @property
+    def websocket_interceptor(self) -> callable:
+        """A callable that will be used to intercept websocket messages.
+
+        The callable must accept a single argument for the websocket message
+        being intercepted.
+        """
+        return self.backend.websocket_interceptor
+
+    @websocket_interceptor.setter
+    def websocket_interceptor(self, interceptor: callable):
+        self.backend.websocket_interceptor = interceptor
+
+    @websocket_interceptor.deleter
+    def websocket_interceptor(self):
+        self.backend.websocket_interceptor = None

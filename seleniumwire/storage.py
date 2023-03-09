@@ -286,7 +286,7 @@ class RequestStorage:
         for indexed_request in index:
             shutil.rmtree(self._get_request_dir(indexed_request.id), ignore_errors=True)
 
-    def find(self, pat: str, check_response: bool = True) -> Optional[Request]:
+    def find_request(self, pat: str, check_response: bool = True) -> Optional[Request]:
         """Find the first request that matches the specified pattern.
 
         Requests are searched in chronological order.
@@ -309,6 +309,25 @@ class RequestStorage:
                     return self._load_request(indexed_request.id)
 
         return None
+
+    def find_websocket(self, pat: str) -> Optional[WebSocketMessage]:
+        """Find the first websocket message that matches the specified pattern.
+
+                WebSocket messages are searched in chronological order.
+
+                Args:
+                    pat: A pattern that will be searched in the message content.
+
+                Returns: The first message in the storage that matches the pattern,
+                    or None if no websocket message match.
+                """
+        with self._lock:
+            index = self._index[:]
+
+            for indexed_request in index:
+                for wsm in indexed_request.ws_messages:
+                    if re.search(pat, wsm.content):
+                        return wsm
 
     def _get_request_dir(self, request_id: str) -> str:
         return os.path.join(self.session_dir, 'request-{}'.format(request_id))
@@ -498,7 +517,7 @@ class InMemoryRequestStorage:
         with self._lock:
             self._requests.clear()
 
-    def find(self, pat: str, check_response: bool = True) -> Optional[Request]:
+    def find_request(self, pat: str, check_response: bool = True) -> Optional[Request]:
         """Find the first request that matches the specified pattern.
 
         Requests are searched in chronological order.
@@ -519,6 +538,27 @@ class InMemoryRequestStorage:
                 if re.search(pat, request.url):
                     if (check_response and request.response) or not check_response:
                         return request
+
+        return None
+
+    def find_websocket(self, pat: str) -> Optional[WebSocketMessage]:
+        """Find the first websocket message that matches the specified pattern.
+
+                WebSocket messages are searched in chronological order.
+
+                Args:
+                    pat: A pattern that will be searched in the message content.
+
+                Returns: The first message in the storage that matches the pattern,
+                    or None if no websocket message match.
+                """
+        with self._lock:
+            for v in self._requests.values():
+                request = v['request']
+
+                for wsm in request.ws_messages:
+                    if re.search(pat, wsm.content):
+                        return wsm
 
         return None
 

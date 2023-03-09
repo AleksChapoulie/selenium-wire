@@ -194,4 +194,8 @@ class InterceptRequestHandler:
             else:
                 direction = '(server -> client)'
 
+            # Call the websocket interceptor if set
+            if self.proxy.websocket_interceptor is not None:
+                self.proxy.websocket_interceptor(ws_message)
+
             log.debug('Capturing websocket message %s: %s', direction, ws_message)
